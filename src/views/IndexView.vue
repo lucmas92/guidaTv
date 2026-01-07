@@ -6,9 +6,8 @@ import { onMounted, ref, watch } from 'vue'
 const { store } = useDailyFetch()
 
 const now = new Date()
-console.log(import.meta.env.VITE_API_KEY)
 
-const programmiInCorso = ref<PalinsestoItem[] | []>([])
+const showNextProgram = ref(false)
 const programmi = ref<PalinsestoItem[] | []>([])
 
 const formatTime = (dateStr: string) => {
@@ -16,28 +15,11 @@ const formatTime = (dateStr: string) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-const calculateCurrentPrograms = () => {
-  programmiInCorso.value = store.palinsesto
-    .map((canaleObj) => {
-      const programmiAttivi = canaleObj.prog.filter((p: Programma) => {
-        const inizio = new Date(p.inizio)
-        const fine = new Date(p.fine)
-        return now >= inizio && now <= fine
-      })
-      return {
-        canale: canaleObj.canale,
-        prog: programmiAttivi,
-      }
-    })
-    .filter((c) => c.prog.length > 0)
-}
-
 // watch store.loading to recalculate when loading is done
 watch(
   () => store.loading,
   (newVal) => {
     if (!newVal) {
-      calculateCurrentPrograms()
       calculatePrograms()
     }
   },
@@ -60,8 +42,13 @@ const calculatePrograms = () => {
       const inizio = new Date(p.inizio)
       return inizio > now
     })
-
-    const combinedProgrammi = [...programmiAttivi, ...programmiFuturi]
+    let combinedProgrammi = []
+    // const combinedProgrammi = [...programmiAttivi, ...programmiFuturi]
+    if (showNextProgram.value) {
+      combinedProgrammi = [...programmiAttivi, ...programmiFuturi.slice(0, 1)]
+    } else {
+      combinedProgrammi = [...programmiAttivi]
+    }
 
     if (combinedProgrammi.length > 0) {
       groupedPrograms[canaleObj.canale.number] = {
@@ -74,9 +61,13 @@ const calculatePrograms = () => {
   programmi.value = Object.values(groupedPrograms)
 }
 
+const toggleNextProgram = () => {
+  showNextProgram.value = !showNextProgram.value
+  calculatePrograms()
+}
+
 onMounted(() => {
   if (store.palinsesto.length > 0) {
-    calculateCurrentPrograms()
     calculatePrograms()
   }
 })
@@ -84,6 +75,18 @@ onMounted(() => {
 
 <template>
   <div class="p-4 print:text-sm print:mx-0 print:mt-0">
+    <section>
+      <button
+        v-if="!store.loading"
+        class="mb-4 w-full px-4 py-2 text-white rounded-md hover:bg-indigo-700 print:hidden"
+        :class="
+          !showNextProgram ? 'bg-indigo-400 hover:bg-indigo-500' : 'bg-red-600 hover:bg-red-700'
+        "
+        @click="toggleNextProgram"
+      >
+        {{ showNextProgram ? 'Nascondi' : 'Mostra' }} prossimo programma per canale
+      </button>
+    </section>
     <div v-if="store.loading" class="text-center py-8 print:py-4">Caricamento…</div>
     <div v-else-if="store.error" class="text-red-600 print:text-black">{{ store.error }}</div>
 
@@ -111,7 +114,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-1 gap-3">
+        <div class="grid grid-cols-1 gap-3">
           <!-- Current program tile -->
           <article
             class="p-3 rounded-lg border border-gray-100 bg-white/60 print:bg-white print:border-black/10 flex flex-col justify-between"
@@ -138,29 +141,41 @@ onMounted(() => {
           </article>
 
           <!-- Next program tile -->
-          <article
-            class="p-3 rounded-lg border border-gray-100 bg-gray-50/60 print:bg-white print:border-black/10 flex flex-col justify-between"
+          <Transition
+            enter-active-class="transition duration-500 ease-out"
+            enter-from-class="opacity-0 scale-20"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition duration-400 ease-in"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-20"
           >
-            <div>
-              <div class="text-xxs text-gray-500 mb-1">Prossimo</div>
-              <div class="flex items-baseline justify-between">
-                <h4 class="text-sm font-semibold text-gray-900 truncate">
-                  {{ item.prog[1]?.title ?? '—' }}
-                </h4>
-                <div class="text-xs font-mono text-gray-600">
-                  <span v-if="item.prog[1]">{{ formatTime(item.prog[1].inizio) }}</span>
-                  <span v-else>—</span>
-                  <span v-if="item.prog[1]"> — {{ formatTime(item.prog[1].fine) }}</span>
+            <article
+              v-if="showNextProgram"
+              class="p-3 rounded-lg border border-gray-100 bg-gray-50/60 print:bg-white print:border-black/10 flex flex-col justify-between"
+            >
+              <div>
+                <div class="text-xxs text-gray-500 mb-1">Prossimo</div>
+                <div class="flex items-baseline justify-between">
+                  <h4 class="text-sm font-semibold text-gray-900 truncate">
+                    {{ item.prog[1]?.title ?? '—' }}
+                  </h4>
+                  <div class="text-xs font-mono text-gray-600">
+                    <span v-if="item.prog[1]">{{ formatTime(item.prog[1].inizio) }}</span>
+                    <span v-else>—</span>
+                    <span v-if="item.prog[1]"> — {{ formatTime(item.prog[1].fine) }}</span>
+                  </div>
                 </div>
+                <p class="text-xs text-gray-600 mt-1 line-clamp-2">
+                  {{ item.prog[1]?.category || '' }}
+                </p>
               </div>
-              <p class="text-xs text-gray-600 mt-1 line-clamp-2">
-                {{ item.prog[1]?.category || '' }}
-              </p>
-            </div>
-            <div class="mt-3 text-right">
-              <span class="text-xs text-gray-500">{{ item.prog[1] ? 'Inizio prossimo' : '' }}</span>
-            </div>
-          </article>
+              <div class="mt-3 text-right">
+                <span class="text-xs text-gray-500">{{
+                  item.prog[1] ? 'Inizio prossimo' : ''
+                }}</span>
+              </div>
+            </article>
+          </Transition>
         </div>
       </li>
     </ul>
