@@ -50,7 +50,9 @@ export const useDataStore = defineStore('data', {
       } catch (err) {
         this.error = (err as Error).message
       } finally {
-        this.loading = false
+        setTimeout(() => {
+          this.loading = false
+        }, 200)
       }
     },
 

@@ -1,7 +1,9 @@
 <script setup lang="ts"></script>
 
 <template>
-  <router-view></router-view>
+  <main class="bg-white dark:bg-slate-950 transition-colors duration-300">
+    <router-view></router-view>
+  </main>
 </template>
 
 <style scoped></style>
