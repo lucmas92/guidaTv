@@ -98,7 +98,7 @@
           <div class="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
               class="h-full bg-linear-to-r from-violet-600 to-purple-600 dark:from-violet-500 dark:to-purple-500 rounded-full transition-all duration-300"
-              style="width: 35%"
+              :style="{ width: percentComplete + '%' }"
             ></div>
           </div>
         </div>
@@ -180,5 +180,4 @@ const next = computed(() => {
   return props.channel.prog[1] || null
 })
 
-console.log(props)
 </script>
